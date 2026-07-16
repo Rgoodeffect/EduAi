@@ -2,6 +2,7 @@ import "dotenv/config";
 import { createDocumentProcessingWorker } from "@infrastructure/queue/workers/document-processing.worker";
 import { createEmbeddingWorker } from "@infrastructure/queue/workers/embedding.worker";
 import { createSummarizationWorker } from "@infrastructure/queue/workers/summarization.worker";
+import { createQuestionGenerationWorker } from "@infrastructure/queue/workers/question-generation.worker";
 
 /**
  * Standalone worker process entrypoint (`npm run worker`). Runs separately
@@ -10,7 +11,12 @@ import { createSummarizationWorker } from "@infrastructure/queue/workers/summari
  * scaled independently (see the `worker` service in docker-compose.yml).
  */
 function main() {
-  const workers = [createDocumentProcessingWorker(), createEmbeddingWorker(), createSummarizationWorker()];
+  const workers = [
+    createDocumentProcessingWorker(),
+    createEmbeddingWorker(),
+    createSummarizationWorker(),
+    createQuestionGenerationWorker(),
+  ];
 
   console.log(`EduAi worker started. Listening on: ${workers.map((w) => w.name).join(", ")}`);
 

@@ -23,6 +23,8 @@ import { EmbeddingService } from "@application/ai/embedding-service";
 import { BullEmbeddingQueue } from "@infrastructure/queue/queues/embedding.queue";
 import { SummarizationService } from "@application/ai/summarization-service";
 import { BullSummarizationQueue } from "@infrastructure/queue/queues/summarization.queue";
+import { QuestionService } from "@application/question/question-service";
+import { BullQuestionGenerationQueue } from "@infrastructure/queue/queues/question-generation.queue";
 
 /**
  * Lightweight, hand-rolled Dependency Injection container.
@@ -176,6 +178,25 @@ class Container {
 
   get summarizationQueue() {
     return this.singleton("summarizationQueue", () => new BullSummarizationQueue());
+  }
+
+  get questionService() {
+    return this.singleton(
+      "questionService",
+      () =>
+        new QuestionService(
+          this.questionRepository,
+          this.chunkRepository,
+          this.documentRepository,
+          this.embeddingService,
+          this.ollamaClient,
+          this.activityRepository,
+        ),
+    );
+  }
+
+  get questionGenerationQueue() {
+    return this.singleton("questionGenerationQueue", () => new BullQuestionGenerationQueue());
   }
 }
 
