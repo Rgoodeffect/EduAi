@@ -1,0 +1,325 @@
+// EduAi — Educational AI Platform
+// Prisma schema. Follows DDD entity boundaries: User, Role, Document, Chunk,
+// Embedding (metadata only — vectors live in ChromaDB), Summary, Question,
+// Exam, ExamQuestion, UserActivity.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum RoleName {
+  ADMIN
+  TEACHER
+  STUDENT
+}
+
+enum DocumentStatus {
+  UPLOADED
+  PROCESSING
+  CHUNKING
+  EMBEDDING
+  READY
+  FAILED
+}
+
+enum QuestionType {
+  MULTIPLE_CHOICE
+  TRUE_FALSE
+  SHORT_ANSWER
+  ESSAY
+  FILL_IN_BLANK
+}
+
+enum QuestionDifficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum ExamStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ActivityType {
+  LOGIN
+  LOGOUT
+  DOCUMENT_UPLOAD
+  DOCUMENT_VIEW
+  SUMMARY_GENERATED
+  QUESTION_GENERATED
+  EXAM_CREATED
+  EXAM_STARTED
+  EXAM_SUBMITTED
+}
+
+// ---------------------------------------------------------------------------
+// User Management
+// ---------------------------------------------------------------------------
+
+model Role {
+  id          String   @id @default(uuid())
+  name        RoleName @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users UserRole[]
+
+  @@map("roles")
+}
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  roles          UserRole[]
+  documents      Document[]
+  summaries      Summary[]
+  questions      Question[]
+  exams          Exam[]
+  activities     UserActivity[]
+  refreshTokens  RefreshToken[]
+  examAttempts   ExamAttempt[]
+
+  @@index([email])
+  @@map("users")
+}
+
+model UserRole {
+  id     String @id @default(uuid())
+  userId String
+  roleId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  assignedAt DateTime @default(now())
+
+  @@unique([userId, roleId])
+  @@index([userId])
+  @@index([roleId])
+  @@map("user_roles")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+// ---------------------------------------------------------------------------
+// Documents & Processing Pipeline
+// ---------------------------------------------------------------------------
+
+model Document {
+  id            String         @id @default(uuid())
+  ownerId       String
+  title         String
+  fileName      String
+  storagePath   String
+  mimeType      String
+  fileSizeBytes Int
+  pageCount     Int?
+  status        DocumentStatus @default(UPLOADED)
+  errorMessage  String?
+  metadata      Json?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  owner     User       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  chunks    Chunk[]
+  summaries Summary[]
+  questions Question[]
+
+  @@index([ownerId])
+  @@index([status])
+  @@map("documents")
+}
+
+model Chunk {
+  id         String   @id @default(uuid())
+  documentId String
+  chunkIndex Int
+  content    String
+  tokenCount Int
+  pageNumber Int?
+  createdAt  DateTime @default(now())
+
+  document  Document   @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  embedding Embedding?
+  questions Question[]
+
+  @@unique([documentId, chunkIndex])
+  @@index([documentId])
+  @@map("chunks")
+}
+
+/// Embedding vectors are stored in ChromaDB. This table tracks the
+/// relationship + metadata so the relational DB remains the source of truth
+/// for referential integrity while ChromaDB handles similarity search.
+model Embedding {
+  id          String   @id @default(uuid())
+  chunkId     String   @unique
+  vectorId    String   @unique // ID of the vector inside the ChromaDB collection
+  collection  String
+  model       String
+  dimensions  Int
+  createdAt   DateTime @default(now())
+
+  chunk Chunk @relation(fields: [chunkId], references: [id], onDelete: Cascade)
+
+  @@index([collection])
+  @@map("embeddings")
+}
+
+model Summary {
+  id         String   @id @default(uuid())
+  documentId String
+  createdById String
+  content    String
+  model      String
+  createdAt  DateTime @default(now())
+
+  document  Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  createdBy User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+  @@map("summaries")
+}
+
+// ---------------------------------------------------------------------------
+// Question Bank
+// ---------------------------------------------------------------------------
+
+model Question {
+  id            String             @id @default(uuid())
+  documentId    String?
+  chunkId       String?
+  createdById   String
+  type          QuestionType
+  difficulty    QuestionDifficulty @default(MEDIUM)
+  prompt        String
+  options       Json?              // for MULTIPLE_CHOICE / TRUE_FALSE
+  correctAnswer String
+  explanation   String?
+  tags          String[]           @default([])
+  model         String?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  document      Document?      @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  chunk         Chunk?         @relation(fields: [chunkId], references: [id], onDelete: SetNull)
+  createdBy     User           @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  examQuestions ExamQuestion[]
+
+  @@index([documentId])
+  @@index([createdById])
+  @@index([type])
+  @@index([difficulty])
+  @@map("questions")
+}
+
+// ---------------------------------------------------------------------------
+// Exams
+// ---------------------------------------------------------------------------
+
+model Exam {
+  id             String     @id @default(uuid())
+  createdById    String
+  title          String
+  description    String?
+  status         ExamStatus @default(DRAFT)
+  durationMinutes Int?
+  passingScore   Int?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  createdBy     User           @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  examQuestions ExamQuestion[]
+  attempts      ExamAttempt[]
+
+  @@index([createdById])
+  @@index([status])
+  @@map("exams")
+}
+
+model ExamQuestion {
+  id         String @id @default(uuid())
+  examId     String
+  questionId String
+  order      Int
+  points     Int    @default(1)
+
+  exam     Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([examId, questionId])
+  @@unique([examId, order])
+  @@index([examId])
+  @@index([questionId])
+  @@map("exam_questions")
+}
+
+model ExamAttempt {
+  id          String    @id @default(uuid())
+  examId      String
+  userId      String
+  answers     Json
+  score       Int?
+  maxScore    Int?
+  startedAt   DateTime  @default(now())
+  submittedAt DateTime?
+
+  exam Exam @relation(fields: [examId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([examId])
+  @@index([userId])
+  @@map("exam_attempts")
+}
+
+// ---------------------------------------------------------------------------
+// Activity / Audit
+// ---------------------------------------------------------------------------
+
+model UserActivity {
+  id        String       @id @default(uuid())
+  userId    String
+  type      ActivityType
+  metadata  Json?
+  ipAddress String?
+  createdAt DateTime     @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
+  @@map("user_activities")
+}

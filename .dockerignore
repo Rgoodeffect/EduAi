@@ -1,0 +1,11 @@
+node_modules
+.next
+out
+storage
+.git
+.env
+.env.local
+*.log
+coverage
+.vscode
+npm-debug.log*
