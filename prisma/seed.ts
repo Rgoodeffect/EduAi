@@ -2,6 +2,7 @@
  * Database seed script. Run with `npm run db:seed`.
  * Idempotent — safe to run multiple times against the same database.
  */
+import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 

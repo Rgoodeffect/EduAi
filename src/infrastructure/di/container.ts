@@ -8,6 +8,10 @@ import { PrismaQuestionRepository } from "@infrastructure/database/repositories/
 import { PrismaExamRepository } from "@infrastructure/database/repositories/prisma-exam-repository";
 import { PrismaExamAttemptRepository } from "@infrastructure/database/repositories/prisma-exam-attempt-repository";
 import { PrismaUserActivityRepository } from "@infrastructure/database/repositories/prisma-activity-repository";
+import { PrismaRefreshTokenRepository } from "@infrastructure/database/repositories/prisma-refresh-token-repository";
+import { PasswordService } from "@infrastructure/auth/password-service";
+import { JwtService } from "@infrastructure/auth/jwt-service";
+import { AuthService } from "@application/auth/auth-service";
 
 /**
  * Lightweight, hand-rolled Dependency Injection container.
@@ -67,6 +71,32 @@ class Container {
 
   get activityRepository() {
     return this.singleton("activityRepository", () => new PrismaUserActivityRepository(prisma));
+  }
+
+  get refreshTokenRepository() {
+    return this.singleton("refreshTokenRepository", () => new PrismaRefreshTokenRepository(prisma));
+  }
+
+  get passwordService() {
+    return this.singleton("passwordService", () => new PasswordService());
+  }
+
+  get jwtService() {
+    return this.singleton("jwtService", () => new JwtService());
+  }
+
+  get authService() {
+    return this.singleton(
+      "authService",
+      () =>
+        new AuthService(
+          this.userRepository,
+          this.refreshTokenRepository,
+          this.activityRepository,
+          this.passwordService,
+          this.jwtService,
+        ),
+    );
   }
 }
 
