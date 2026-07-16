@@ -32,6 +32,10 @@ export class Exam extends Entity<ExamProps> {
     return this.props.title;
   }
 
+  get description(): string | null {
+    return this.props.description;
+  }
+
   get status(): ExamStatus {
     return this.props.status;
   }
@@ -46,6 +50,18 @@ export class Exam extends Entity<ExamProps> {
 
   get durationMinutes(): number | null {
     return this.props.durationMinutes;
+  }
+
+  get passingScore(): number | null {
+    return this.props.passingScore;
+  }
+
+  get createdAt(): Date {
+    return this.props.createdAt;
+  }
+
+  get updatedAt(): Date {
+    return this.props.updatedAt;
   }
 
   totalPoints(): number {

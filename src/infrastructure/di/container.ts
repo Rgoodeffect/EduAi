@@ -25,6 +25,7 @@ import { SummarizationService } from "@application/ai/summarization-service";
 import { BullSummarizationQueue } from "@infrastructure/queue/queues/summarization.queue";
 import { QuestionService } from "@application/question/question-service";
 import { BullQuestionGenerationQueue } from "@infrastructure/queue/queues/question-generation.queue";
+import { ExamService } from "@application/exam/exam-service";
 
 /**
  * Lightweight, hand-rolled Dependency Injection container.
@@ -197,6 +198,14 @@ class Container {
 
   get questionGenerationQueue() {
     return this.singleton("questionGenerationQueue", () => new BullQuestionGenerationQueue());
+  }
+
+  get examService() {
+    return this.singleton(
+      "examService",
+      () =>
+        new ExamService(this.examRepository, this.examAttemptRepository, this.questionRepository, this.activityRepository),
+    );
   }
 }
 
