@@ -12,6 +12,11 @@ import { PrismaRefreshTokenRepository } from "@infrastructure/database/repositor
 import { PasswordService } from "@infrastructure/auth/password-service";
 import { JwtService } from "@infrastructure/auth/jwt-service";
 import { AuthService } from "@application/auth/auth-service";
+import { LocalFileStorageService } from "@infrastructure/storage/local-file-storage";
+import { PdfTextExtractor } from "@infrastructure/storage/pdf-extractor";
+import { ChunkingEngine } from "@domain/chunk/services/chunking-engine";
+import { BullDocumentProcessingQueue } from "@infrastructure/queue/queues/document-processing.queue";
+import { DocumentService } from "@application/document/document-service";
 
 /**
  * Lightweight, hand-rolled Dependency Injection container.
@@ -95,6 +100,36 @@ class Container {
           this.activityRepository,
           this.passwordService,
           this.jwtService,
+        ),
+    );
+  }
+
+  get fileStorageService() {
+    return this.singleton("fileStorageService", () => new LocalFileStorageService());
+  }
+
+  get pdfExtractor() {
+    return this.singleton("pdfExtractor", () => new PdfTextExtractor());
+  }
+
+  get chunkingEngine() {
+    return this.singleton("chunkingEngine", () => new ChunkingEngine());
+  }
+
+  get documentProcessingQueue() {
+    return this.singleton("documentProcessingQueue", () => new BullDocumentProcessingQueue());
+  }
+
+  get documentService() {
+    return this.singleton(
+      "documentService",
+      () =>
+        new DocumentService(
+          this.documentRepository,
+          this.chunkRepository,
+          this.fileStorageService,
+          this.documentProcessingQueue,
+          this.activityRepository,
         ),
     );
   }

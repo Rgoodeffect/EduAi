@@ -9,8 +9,7 @@ dist/
 *.log
 npm-debug.log*
 .DS_Store
-uploads/
-storage/
+/storage/uploads/
 coverage/
 .vscode/
 *.tsbuildinfo

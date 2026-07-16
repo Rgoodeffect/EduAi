@@ -2,7 +2,7 @@
 const nextConfig = {
   reactStrictMode: true,
   output: "standalone",
-  serverExternalPackages: ["@prisma/client", "pdf-parse", "chromadb"],
+  serverExternalPackages: ["@prisma/client", "unpdf", "chromadb"],
   eslint: {
     ignoreDuringBuilds: false,
   },

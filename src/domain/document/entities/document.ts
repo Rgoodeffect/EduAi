@@ -33,6 +33,10 @@ export class Document extends Entity<DocumentProps> {
     return this.props.title;
   }
 
+  get fileName(): string {
+    return this.props.fileName;
+  }
+
   get status(): DocumentStatus {
     return this.props.status;
   }
@@ -59,6 +63,14 @@ export class Document extends Entity<DocumentProps> {
 
   get createdAt(): Date {
     return this.props.createdAt;
+  }
+
+  get updatedAt(): Date {
+    return this.props.updatedAt;
+  }
+
+  get metadata(): Record<string, unknown> | null {
+    return this.props.metadata;
   }
 
   isReady(): boolean {
