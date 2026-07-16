@@ -17,6 +17,12 @@ import { PdfTextExtractor } from "@infrastructure/storage/pdf-extractor";
 import { ChunkingEngine } from "@domain/chunk/services/chunking-engine";
 import { BullDocumentProcessingQueue } from "@infrastructure/queue/queues/document-processing.queue";
 import { DocumentService } from "@application/document/document-service";
+import { OllamaClient } from "@infrastructure/ai/ollama-client";
+import { ChromaVectorStore } from "@infrastructure/ai/chroma-vector-store";
+import { EmbeddingService } from "@application/ai/embedding-service";
+import { BullEmbeddingQueue } from "@infrastructure/queue/queues/embedding.queue";
+import { SummarizationService } from "@application/ai/summarization-service";
+import { BullSummarizationQueue } from "@infrastructure/queue/queues/summarization.queue";
 
 /**
  * Lightweight, hand-rolled Dependency Injection container.
@@ -132,6 +138,44 @@ class Container {
           this.activityRepository,
         ),
     );
+  }
+
+  get ollamaClient() {
+    return this.singleton("ollamaClient", () => new OllamaClient());
+  }
+
+  get vectorStore() {
+    return this.singleton("vectorStore", () => new ChromaVectorStore());
+  }
+
+  get embeddingQueue() {
+    return this.singleton("embeddingQueue", () => new BullEmbeddingQueue());
+  }
+
+  get embeddingService() {
+    return this.singleton(
+      "embeddingService",
+      () =>
+        new EmbeddingService(this.chunkRepository, this.embeddingRepository, this.ollamaClient, this.vectorStore),
+    );
+  }
+
+  get summarizationService() {
+    return this.singleton(
+      "summarizationService",
+      () =>
+        new SummarizationService(
+          this.chunkRepository,
+          this.summaryRepository,
+          this.documentRepository,
+          this.ollamaClient,
+          this.activityRepository,
+        ),
+    );
+  }
+
+  get summarizationQueue() {
+    return this.singleton("summarizationQueue", () => new BullSummarizationQueue());
   }
 }
 

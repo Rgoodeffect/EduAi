@@ -58,7 +58,8 @@ export function createDocumentProcessingWorker(): Worker<ProcessDocumentJobData>
           })),
         );
 
-        await documentRepository.updateStatus(documentId, DocumentStatus.READY);
+        await documentRepository.updateStatus(documentId, DocumentStatus.EMBEDDING);
+        await container.embeddingQueue.enqueueEmbedding(documentId);
       } catch (err) {
         const message = err instanceof Error ? err.message : "Unknown document processing error";
         await documentRepository.updateStatus(documentId, DocumentStatus.FAILED, message);
