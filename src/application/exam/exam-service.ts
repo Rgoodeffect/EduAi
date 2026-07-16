@@ -147,11 +147,10 @@ export class ExamService {
     return Result.ok(undefined);
   }
 
-  /** Starts an attempt and returns the exam's questions WITHOUT answer keys, ordered as configured. */
-  async startAttempt(
+  /** Returns a published exam's questions, answer keys stripped, in configured order — used both to start an attempt and to re-render the taking UI on resume without minting a duplicate attempt. */
+  async getPublishedExamQuestions(
     examId: string,
-    userId: string,
-  ): Promise<Result<AttemptQuestionsResult, ExamNotFoundError | ExamNotPublishedError>> {
+  ): Promise<Result<{ exam: Exam; questions: Question[] }, ExamNotFoundError | ExamNotPublishedError>> {
     const exam = await this.examRepository.findById(examId);
     if (!exam) return Result.fail(new ExamNotFoundError(examId));
     if (!exam.isPublished()) return Result.fail(new ExamNotPublishedError());
@@ -163,6 +162,18 @@ export class ExamService {
       .sort((a, b) => a.order - b.order)
       .map((ref) => byId.get(ref.questionId))
       .filter((q): q is Question => q !== undefined);
+
+    return Result.ok({ exam, questions: ordered });
+  }
+
+  /** Starts an attempt and returns the exam's questions WITHOUT answer keys, ordered as configured. */
+  async startAttempt(
+    examId: string,
+    userId: string,
+  ): Promise<Result<AttemptQuestionsResult, ExamNotFoundError | ExamNotPublishedError>> {
+    const loaded = await this.getPublishedExamQuestions(examId);
+    if (!loaded.ok) return loaded;
+    const { exam, questions: ordered } = loaded.value;
 
     const attempt = await this.examAttemptRepository.create({ examId, userId });
 
